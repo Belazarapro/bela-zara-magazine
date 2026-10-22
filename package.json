@@ -1,12 +1,14 @@
 {
   "name": "bela-zara-magazine",
-  "version": "1.0.0",
+  "version": "3.0.0",
   "private": true,
   "type": "module",
   "description": "Blog-magazine indépendant Bela Zara, sans WordPress et sans dépendances npm",
   "scripts": {
-    "start": "node server.mjs",
-    "dev": "node --watch server.mjs"
+    "start": "node server-v3.mjs",
+    "dev": "node --watch server-v3.mjs"
   },
-  "engines": {"node": ">=22.13.0"}
+  "engines": {
+    "node": ">=22.13.0"
+  }
 }
