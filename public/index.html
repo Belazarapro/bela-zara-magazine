@@ -7,14 +7,15 @@
   <meta name="description" content="Bela Zara. Idées, société, littérature, pamphlets, podcasts et vidéos." />
   <title>Bela Zara | Idées, société, littérature</title>
   <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="/style.css" />
-  <script type="module" src="/app.js"></script>
+  <link rel="stylesheet" href="/style.css?v=3" />
+  <script type="module" src="/app.js?v=3"></script>
+  <link rel="stylesheet" href="/shop.css?v=3">
 </head>
 <body>
   <div class="site-shell">
     <header class="masthead">
       <a href="/" data-link class="identity" aria-label="Bela Zara, accueil">
-        <span class="identity-title"><span>BELA</span> <em>ZARA</em></span>
+        <span class="identity-title" id="brand-title"><span>BELA</span> <em>ZARA</em></span>
         <span class="identity-tagline" id="tagline">IDÉES · SOCIÉTÉ · LITTÉRATURE · PAMPHLETS</span>
       </a>
       <div class="masthead-motto"><span class="quote-mark">«</span> <span id="motto">Interroger le monde<br>pour mieux le transformer.</span> <span class="quote-mark">»</span><i></i></div>
@@ -30,13 +31,13 @@
         <a data-link data-nav="articles" href="/rubrique/articles">ARTICLES</a>
         <a data-link data-nav="dossiers" href="/rubrique/dossiers">GRANDS DOSSIERS</a>
         <a data-link data-nav="podcasts" href="/rubrique/podcasts">PODCASTS & VIDÉOS</a>
-        <a data-link data-nav="livres" href="/rubrique/livres">LIVRES</a>
+        <a data-link data-nav="livres" href="/rubrique/livres">LIVRES</a><a data-link data-nav="shop" href="/boutique">BOUTIQUE</a><a data-link data-nav="client" href="/mon-espace">MON ESPACE</a>
         <a data-link data-nav="about" href="/a-propos">À PROPOS</a>
         <a data-link data-nav="admin" href="/admin">ADMINISTRATION</a>
       </div>
     </nav>
     <main id="app" aria-live="polite"><div class="loading">Chargement du magazine…</div></main>
-    <footer class="footer"><div><strong>BELA <span>ZARA</span></strong><p id="footer-text">Un espace libre pour penser, écrire et débattre.</p></div><div class="footer-links"><a href="/" data-link>Accueil</a><a href="/a-propos" data-link>À propos</a><a href="/admin" data-link>Administration</a></div><p class="legal">© <span id="year"></span> Bela Zara · Magazine indépendant</p></footer>
+    <footer class="footer"><div><strong>BELA <span>ZARA</span></strong><p id="footer-text">Un espace libre pour penser, écrire et débattre.</p></div><div class="footer-links"><a href="/" data-link>Accueil</a><a href="/a-propos" data-link>À propos</a><a href="/boutique" data-link>Boutique</a><a href="/mon-espace" data-link>Mon espace</a><a href="/mentions-legales" data-link>Mentions légales</a><a href="/confidentialite" data-link>Confidentialité</a><a href="/conditions-de-vente" data-link>Conditions de vente</a><a href="/admin" data-link>Administration</a></div><p class="legal">© <span id="year"></span> Bela Zara · Magazine indépendant</p></footer>
   </div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 </body>
