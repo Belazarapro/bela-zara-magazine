@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#a6161c" />
+  <meta name="description" content="Bela Zara. Idées, société, littérature, pamphlets, podcasts et vidéos." />
+  <title>Bela Zara | Idées, société, littérature</title>
+  <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="/style.css" />
+  <script type="module" src="/app.js"></script>
+</head>
+<body>
+  <div class="site-shell">
+    <header class="masthead">
+      <a href="/" data-link class="identity" aria-label="Bela Zara, accueil">
+        <span class="identity-title"><span>BELA</span> <em>ZARA</em></span>
+        <span class="identity-tagline" id="tagline">IDÉES · SOCIÉTÉ · LITTÉRATURE · PAMPHLETS</span>
+      </a>
+      <div class="masthead-motto"><span class="quote-mark">«</span> <span id="motto">Interroger le monde<br>pour mieux le transformer.</span> <span class="quote-mark">»</span><i></i></div>
+      <div class="masthead-actions">
+        <form id="site-search" class="search-box" role="search"><input type="search" name="q" placeholder="Rechercher un article…" aria-label="Rechercher un article"><button type="submit" aria-label="Rechercher">⌕</button></form>
+        <div class="social-row"><span class="social-label">LE MAGAZINE INDÉPENDANT</span><a href="/admin" data-link title="Administrer le magazine" aria-label="Administration">⚙</a></div>
+      </div>
+    </header>
+    <nav class="main-nav" aria-label="Navigation principale">
+      <button class="menu-toggle" id="menu-toggle" aria-expanded="false">☰ MENU</button>
+      <div class="nav-links" id="nav-links">
+        <a data-link data-nav="home" href="/">ACCUEIL</a>
+        <a data-link data-nav="articles" href="/rubrique/articles">ARTICLES</a>
+        <a data-link data-nav="dossiers" href="/rubrique/dossiers">GRANDS DOSSIERS</a>
+        <a data-link data-nav="podcasts" href="/rubrique/podcasts">PODCASTS & VIDÉOS</a>
+        <a data-link data-nav="livres" href="/rubrique/livres">LIVRES</a>
+        <a data-link data-nav="about" href="/a-propos">À PROPOS</a>
+        <a data-link data-nav="admin" href="/admin">ADMINISTRATION</a>
+      </div>
+    </nav>
+    <main id="app" aria-live="polite"><div class="loading">Chargement du magazine…</div></main>
+    <footer class="footer"><div><strong>BELA <span>ZARA</span></strong><p id="footer-text">Un espace libre pour penser, écrire et débattre.</p></div><div class="footer-links"><a href="/" data-link>Accueil</a><a href="/a-propos" data-link>À propos</a><a href="/admin" data-link>Administration</a></div><p class="legal">© <span id="year"></span> Bela Zara · Magazine indépendant</p></footer>
+  </div>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+</body>
+</html>
