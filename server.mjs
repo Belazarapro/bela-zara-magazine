@@ -74,10 +74,23 @@ function uniqueSlug(title, ignoreId=0) {
 function settings() {const out={}; for(const {key,value} of db.prepare('SELECT key,value FROM settings').all()) out[key]=value;return out;}
 function publicPost(row){return {...row, featured:!!row.featured};}
 const sessions = new Map();
+// Limiteur simple d'essais de connexion (en mémoire, par adresse IP).
+const failedLogins = new Map();
+function visitorIp(req) { return String(req.socket.remoteAddress || 'unknown'); }
+function attemptsFor(ip) {
+  const now=Date.now(); let entry=failedLogins.get(ip);
+  if(!entry || entry.reset < now) {entry={count:0,reset:now+15*60*1000}; failedLogins.set(ip,entry);}
+  return entry;
+}
+setInterval(()=>{
+  const now=Date.now();
+  for (const [ip,entry] of failedLogins) if(entry.reset<now) failedLogins.delete(ip);
+  for (const [token,entry] of sessions) if(entry.exp<now) sessions.delete(token);
+}, 10*60*1000).unref();
 const MAX_BYTES = 6*1024*1024;
 function parseCookies(raw=''){return Object.fromEntries(raw.split(';').map(v=>v.trim().split('=').map(decodeURIComponent)).filter(v=>v.length===2));}
 function authorized(req){const token=parseCookies(req.headers.cookie).bela_session;const s=token&&sessions.get(token);return !!(s&&s.exp>Date.now());}
-function json(res,data,status=200,extra={}){const body=JSON.stringify(data);res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff',...extra});res.end(body);}
+function json(res,data,status=200,extra={}){const body=JSON.stringify(data);res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff','X-Frame-Options':'DENY','Referrer-Policy':'strict-origin-when-cross-origin',...extra});res.end(body);}
 async function readBody(req,max=MAX_BYTES){let size=0;const chunks=[];for await(const chunk of req){size+=chunk.length;if(size>max) throw Object.assign(new Error('Fichier trop volumineux'),{status:413});chunks.push(chunk);}return Buffer.concat(chunks);}
 async function readJson(req){const body=await readBody(req,1024*1024);try{return JSON.parse(body.toString('utf8'))}catch {throw Object.assign(new Error('JSON invalide'),{status:400});}}
 function requireAdmin(req,res){if(!authorized(req)){json(res,{error:'Connexion administrateur requise'},401);return false}return true;}
@@ -112,7 +125,7 @@ function passwordValid(password) {const configured=process.env.ADMIN_PASSWORD; i
 function isAllowedOrigin(req) {const origin=req.headers.origin;if(!origin)return true;try {const o=new URL(origin);return o.host===req.headers.host;}catch{return false;}}
 function mime(filename){const ext=path.extname(filename).toLowerCase();return ({'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.svg':'image/svg+xml','.jpg':'image/jpeg','.jpeg':'image/jpeg','.png':'image/png','.webp':'image/webp','.ico':'image/x-icon','.txt':'text/plain; charset=utf-8'})[ext]||'application/octet-stream';}
 function staticFile(res,root,relative){let file=path.resolve(root,'.'+relative);if(!file.startsWith(root+path.sep))return json(res,{error:'Accès refusé'},403);
-  try{const stat=fs.statSync(file);if(!stat.isFile())throw 0;res.writeHead(200,{'Content-Type':mime(file),'Content-Length':stat.size,'X-Content-Type-Options':'nosniff','Cache-Control':file.endsWith('.html')?'no-cache':'public, max-age=600'});fs.createReadStream(file).pipe(res);}catch{json(res,{error:'Fichier introuvable'},404)}
+  try{const stat=fs.statSync(file);if(!stat.isFile())throw 0;res.writeHead(200,{'Content-Type':mime(file),'Content-Length':stat.size,'X-Content-Type-Options':'nosniff','Cache-Control':file.endsWith('.html')?'no-cache':'public, max-age=600','X-Frame-Options':'DENY','Referrer-Policy':'strict-origin-when-cross-origin'});fs.createReadStream(file).pipe(res);}catch{json(res,{error:'Fichier introuvable'},404)}
 }
 const server=http.createServer(async(req,res)=>{
   try{
@@ -132,7 +145,13 @@ const server=http.createServer(async(req,res)=>{
     }
     if(pathname==='/api/auth/session'&&req.method==='GET')return json(res,{authenticated:authorized(req),configured:!!(process.env.ADMIN_PASSWORD&&process.env.ADMIN_PASSWORD.length>=12)});
     if(pathname==='/api/auth/login'&&req.method==='POST') {
-      const {password}=await readJson(req);if(!passwordValid(password))return json(res,{error:'Mot de passe incorrect ou administration non configurée'},401);
+      const {password}=await readJson(req);const ip=visitorIp(req);const attempt=attemptsFor(ip);
+      if(attempt.count>=8)return json(res,{error:'Trop de tentatives. Réessayez plus tard.'},429,{'Retry-After':'900'});
+      if(!passwordValid(password)){
+        attempt.count++;
+        return json(res,{error:'Mot de passe incorrect ou administration non configurée'},401);
+      }
+      failedLogins.delete(ip);
       const token=crypto.randomBytes(32).toString('hex');sessions.set(token,{exp:Date.now()+1000*60*60*12});
       const secure=(req.socket.encrypted||req.headers['x-forwarded-proto']==='https')?'; Secure':'';
       return json(res,{ok:true},200,{'Set-Cookie':`bela_session=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=43200${secure}`});

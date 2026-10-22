@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: bela-zara-magazine
+    runtime: node
+    plan: starter
+    buildCommand: npm install --omit=dev
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: 22.16.0
+      - key: NODE_ENV
+        value: production
+      - key: DATA_DIR
+        value: /var/data
+      - key: ADMIN_PASSWORD
+        sync: false
+    disk:
+      name: bela-zara-data
+      mountPath: /var/data
+      sizeGB: 1
