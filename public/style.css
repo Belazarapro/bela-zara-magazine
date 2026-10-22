@@ -19,3 +19,34 @@
 .primary-column.cards-first{display:flex;flex-direction:column}
 .primary-column.cards-first .card-grid{order:-1}
 @media(max-width:820px){.magazine-grid.sidebar-left{grid-template-columns:1fr}.magazine-grid.sidebar-left .sidebar,.magazine-grid.sidebar-left .primary-column{grid-column:1;grid-row:auto}}
+
+/* V2 — administration éditoriale, médiathèque et lecteur EPUB */
+.masthead:after{background-image:var(--masthead-art,url('/assets/regards.jpg'))}
+.quote-panel:after{background-image:var(--quote-art,url('/assets/regards.jpg'))}
+.nav-links a[hidden]{display:none!important}
+.sidebar-portrait{padding:15px 20px 0}.sidebar-portrait img{width:100%;height:auto;max-height:300px;object-fit:cover;filter:grayscale(.45)}
+.about-portrait{display:block;max-width:520px;width:100%;max-height:480px;object-fit:cover;margin:22px 0;filter:grayscale(.35)}
+.admin-tabs{flex-wrap:wrap;gap:7px}.admin-tabs button{font-size:18px;padding:11px 16px}.admin-tabs button:focus-visible{outline:2px solid var(--red);outline-offset:2px}
+.photo-admin-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.photo-admin-card{background:#f4f0e7;border:1px solid #d8cfc0;padding:15px;min-width:0}
+.photo-admin-card h3{font:900 25px var(--display);margin:0 0 7px}
+.photo-admin-card p{font:14px/1.4 var(--serif);min-height:40px}
+.site-photo-preview{width:100%;height:150px;object-fit:cover;border:1px solid #ddd4c6}
+.site-photo-preview[hidden]{display:none}
+.menu-row{display:flex;align-items:center;gap:20px;border-top:1px solid #d6cfc4;padding:8px 0}
+.menu-row .field{flex:1}.menu-visible{display:flex;align-items:center;gap:8px;white-space:nowrap;font:800 16px var(--display)}
+.media-admin-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:22px}
+.media-admin-item{min-width:0;border:1px solid #d6cfc4;background:#f4f0e7;padding:12px;display:flex;flex-direction:column;gap:9px}
+.media-admin-item>img,.media-admin-item>video{width:100%;height:155px;object-fit:cover;background:#191919}
+.media-admin-item>audio{width:100%;margin:45px 0}
+.media-admin-item input{width:100%;padding:8px;border:1px solid #c4bcaf;background:#fff;font:13px Arial}
+.media-admin-item small{font:800 14px var(--display);color:#5b5550}
+.media-actions{display:flex;gap:5px;flex-wrap:wrap}
+.media-file-icon{display:flex;align-items:center;justify-content:center;background:#141414;color:white;height:155px;font:900 52px var(--display)}
+.media-embed video{width:100%;max-height:540px;background:#090909;display:block}
+.epub-shell{margin:28px 0;border:1px solid #cfc6b8;background:#faf8f3;padding:15px}
+.epub-actions,.epub-toolbar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.epub-toolbar{padding:10px;background:#e7e1d6;font:800 17px var(--display)}
+#epub-reader{margin-top:18px}#epub-view{background:white;border:1px solid #d0c7b9;min-height:620px}#epub-view iframe{border:0}
+@media(max-width:900px){.media-admin-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:640px){.photo-admin-grid,.media-admin-grid{grid-template-columns:1fr}.menu-row{align-items:flex-start;flex-direction:column;gap:0}.admin-tabs button{font-size:16px;padding:9px 12px}.epub-toolbar button{font-size:13px;padding:8px}}
