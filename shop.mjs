@@ -10,6 +10,8 @@ export function createShop({db,DATA,readBody,json,requireAdmin,isAllowedOrigin,s
  CREATE TABLE IF NOT EXISTS shop_orders(id TEXT PRIMARY KEY,user_id TEXT NOT NULL,items TEXT NOT NULL,total INTEGER NOT NULL,status TEXT NOT NULL DEFAULT 'pending',stripe_session TEXT UNIQUE,payment_intent TEXT,created_at TEXT DEFAULT CURRENT_TIMESTAMP);
  CREATE TABLE IF NOT EXISTS shop_grants(user_id TEXT NOT NULL,product_id TEXT NOT NULL,order_id TEXT,PRIMARY KEY(user_id,product_id));
  CREATE TABLE IF NOT EXISTS shop_events(id TEXT PRIMARY KEY);
+ CREATE TABLE IF NOT EXISTS shop_epub_state(user_id TEXT NOT NULL, product_id TEXT NOT NULL, cfi TEXT NOT NULL DEFAULT '', prefs TEXT NOT NULL DEFAULT '{}', updated_at INTEGER, PRIMARY KEY(user_id,product_id));
+ CREATE TABLE IF NOT EXISTS shop_epub_notes(id TEXT PRIMARY KEY,user_id TEXT NOT NULL,product_id TEXT NOT NULL,cfi TEXT NOT NULL,quote TEXT NOT NULL DEFAULT '',note TEXT NOT NULL DEFAULT '',color TEXT NOT NULL DEFAULT 'yellow',kind TEXT NOT NULL DEFAULT 'bookmark',created_at INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS shop_tracks(id TEXT PRIMARY KEY,product_id TEXT NOT NULL,title TEXT NOT NULL,filename TEXT NOT NULL,position INTEGER NOT NULL DEFAULT 0);`);
  // Migration compatible avec les comptes et achats existants.
  if(!db.prepare("PRAGMA table_info(shop_users)").all().some(c=>c.name==='suspended'))
@@ -58,6 +60,51 @@ export function createShop({db,DATA,readBody,json,requireAdmin,isAllowedOrigin,s
   }
   if(!url.startsWith('/api/shop/'))return false;
   if(!['GET','HEAD'].includes(req.method)&&!isAllowedOrigin(req))throw bad('Origine interdite',403);
+  const epubPath=url.match(/^\/api\/shop\/epub\/([a-f0-9-]{36})(?:\/(state|annotations)(?:\/([a-f0-9-]{36}))?)?$/);
+  if(epubPath){
+   const user=required(req),id=epubPath[1],product=db.prepare('SELECT * FROM shop_products WHERE id=?').get(id);
+   if(!product||product.kind!=='ebook'||!access(user,product)||!/^[a-f0-9-]{36}\.epub$/.test(product.private_file))
+    throw bad('Ce livre EPUB n’est pas disponible dans votre bibliothèque.',403);
+   const prefsDefault={fontSize:100,font:'serif',theme:'sepia',lineHeight:1.7,margin:24,align:'left',flow:'paginated',spread:'auto'};
+   const cleanCfi=v=>{if(typeof v!=='string'||v.length>4000||v&&!/^epubcfi\([^<>\r\n]+\)$/.test(v))throw bad('Position EPUB invalide');return v};
+   const prefs=v=>{
+    const source=v&&typeof v==='object'&&!Array.isArray(v)?v:{};
+    const select=(key,values)=>values.includes(source[key])?source[key]:prefsDefault[key];
+    const numeric=(key,min,max)=>Number.isFinite(source[key])?Math.max(min,Math.min(max,source[key])):prefsDefault[key];
+    return {...prefsDefault,fontSize:numeric('fontSize',70,240),lineHeight:numeric('lineHeight',1.2,2.4),margin:numeric('margin',8,80),font:select('font',['publisher','serif','sans','readable']),theme:select('theme',['light','sepia']),align:select('align',['left','justify']),spread:select('spread',['none','auto'])};
+   };
+   const current=db.prepare('SELECT * FROM shop_epub_state WHERE user_id=? AND product_id=?').get(user.id,id);
+   if(!epubPath[2]&&req.method==='GET'){
+    let stored={};try{stored=current?JSON.parse(current.prefs):{}}catch{}
+    const annotations=db.prepare('SELECT id,cfi,quote,note,color,kind,created_at AS createdAt FROM shop_epub_notes WHERE user_id=? AND product_id=? ORDER BY created_at DESC').all(user.id,id);
+    return json(res,{id,title:product.title,cfi:current?.cfi||'',prefs:prefs(stored),annotations});
+   }
+   if(epubPath[2]==='state'&&req.method==='PUT'){
+    const b=await data(req),cfi=cleanCfi(b.cfi??current?.cfi??''),settings=prefs(b.prefs);
+    db.prepare('INSERT INTO shop_epub_state(user_id,product_id,cfi,prefs,updated_at) VALUES(?,?,?,?,?) ON CONFLICT(user_id,product_id) DO UPDATE SET cfi=excluded.cfi,prefs=excluded.prefs,updated_at=excluded.updated_at')
+      .run(user.id,id,cfi,JSON.stringify(settings),Date.now());return json(res,{ok:true});
+   }
+   if(epubPath[2]==='annotations'&&req.method==='POST'&&!epubPath[3]){
+    if(db.prepare('SELECT COUNT(*) AS n FROM shop_epub_notes WHERE user_id=? AND product_id=?').get(user.id,id).n>=500)throw bad('Limite de 500 repères atteinte.',409);
+    const b=await data(req),cfi=cleanCfi(b.cfi);if(!cfi)throw bad('Sélectionnez un passage');
+    const cleanText=(x,n)=>typeof x==='string'?x.slice(0,n):'';
+    const note={id:crypto.randomUUID(),cfi,quote:cleanText(b.quote,4000),note:cleanText(b.note,8000),color:['yellow','green','pink','blue'].includes(b.color)?b.color:'yellow',kind:b.kind==='bookmark'?'bookmark':'highlight',createdAt:Date.now()};
+    db.prepare('INSERT INTO shop_epub_notes(id,user_id,product_id,cfi,quote,note,color,kind,created_at) VALUES(?,?,?,?,?,?,?,?,?)').run(note.id,user.id,id,note.cfi,note.quote,note.note,note.color,note.kind,note.createdAt);
+    return json(res,{annotation:note},201);
+   }
+   if(epubPath[2]==='annotations'&&epubPath[3]&&req.method==='PUT'){
+    const old=db.prepare('SELECT * FROM shop_epub_notes WHERE id=? AND user_id=? AND product_id=?').get(epubPath[3],user.id,id);
+    if(!old)throw bad('Repère introuvable',404);
+    const b=await data(req),note=typeof b.note==='string'?b.note.slice(0,8000):'',color=['yellow','green','pink','blue'].includes(b.color)?b.color:old.color;
+    db.prepare('UPDATE shop_epub_notes SET note=?,color=? WHERE id=?').run(note,color,old.id);
+    return json(res,{annotation:{id:old.id,cfi:old.cfi,quote:old.quote,note,color,kind:old.kind,createdAt:old.created_at}});
+   }
+   if(epubPath[2]==='annotations'&&epubPath[3]&&req.method==='DELETE'){
+    const change=db.prepare('DELETE FROM shop_epub_notes WHERE id=? AND user_id=? AND product_id=?').run(epubPath[3],user.id,id);
+    if(!change.changes)throw bad('Repère introuvable',404);return json(res,{ok:true});
+   }
+   throw bad('Route EPUB inconnue',405);
+  }
   if(url==='/api/shop/catalog'&&req.method==='GET')return json(res,{products:products().filter(p=>p.active).map(pub),salesReady:ready(),registrationReady:true,legalReady:legal()});
   if(url==='/api/shop/me'&&req.method==='GET'){
    const u=me(req);return json(res,{user:u,owned:u?products().filter(p=>access(u,p)).map(pub):[],orders:u?db.prepare('SELECT id,total,status,created_at FROM shop_orders WHERE user_id=? ORDER BY created_at DESC').all(u.id):[]});

@@ -1,3 +1,4 @@
+import {epubReaderPage,mountEpubReader,destroyEpubReader} from './epub-reader-methode.mjs';
 // Espace premium dédié aux publications acquises. Aucun lien ne contourne les droits d'accès.
 const h=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let current=null;
@@ -34,6 +35,7 @@ export async function productPage(id){
   current=product;
   document.title=product.title+' | Bibliothèque Bela Zara';
   const audio=product.kind==='audio',video=['video','formation'].includes(product.kind),ebook=product.kind==='ebook';
+  if(ebook&&product.file_type==='epub')return epubReaderPage(product.id,product.title,h);
   const type=ebook?'LECTURE NUMÉRIQUE':audio?'PODCAST & AUDIO':'VIDÉO & FORMATION';
   return '<section class="product-private" data-reader-product="'+h(product.id)+'">'+
     '<a class="reader-back" href="/mon-espace" data-link>← MA BIBLIOTHÈQUE</a>'+
@@ -49,6 +51,22 @@ export async function productPage(id){
  }catch(err){return '<section class="product-private"><h1>LECTURE INDISPONIBLE</h1><p>'+h(err.message)+'</p><a data-link href="/mon-espace">RETOUR À MON ESPACE</a></section>'}
 }
 export async function mountProductReader(id){
+ if(current?.id===id&&current.kind==='ebook'&&current.file_type==='epub'&&document.getElementById('epub-shell')){
+   const api=async path=>{
+     const response=await fetch('/api/shop'+path,{credentials:'same-origin',cache:'no-store'});
+     const body=await response.json().catch(()=>({error:'Réponse serveur illisible'}));
+     if(!response.ok)throw Error(body.error||'Erreur du serveur (HTTP '+response.status+')');
+     return body;
+   };
+   const send=async (path,body,method='POST')=>{
+     const response=await fetch('/api/shop'+path,{method,credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+     const data=await response.json().catch(()=>({error:'Réponse serveur illisible'}));
+     if(!response.ok)throw Error(data.error||'Erreur du serveur (HTTP '+response.status+')');
+     return data;
+   };
+   await mountEpubReader(id,{api,send,e:h});
+   return;
+ }
  const root=document.querySelector('[data-reader-product]');
  if(!root||!current||current.id!==id)return;
  const index=root.querySelector('#reader-index'),display=root.querySelector('#reader-display'),tools=root.querySelector('#reader-tools'),status=root.querySelector('#reader-status');
