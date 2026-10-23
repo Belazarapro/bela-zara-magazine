@@ -50,3 +50,9 @@
 #epub-reader{margin-top:18px}#epub-view{background:white;border:1px solid #d0c7b9;min-height:620px}#epub-view iframe{border:0}
 @media(max-width:900px){.media-admin-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:640px){.photo-admin-grid,.media-admin-grid{grid-template-columns:1fr}.menu-row{align-items:flex-start;flex-direction:column;gap:0}.admin-tabs button{font-size:16px;padding:9px 12px}.epub-toolbar button{font-size:13px;padding:8px}}
+
+/* Lecteurs intégrés et outils de placement dans l'article */
+.editor-media-tools{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.editor-media-tools .small-button{font-size:12px}
+.media-embed-audio iframe{aspect-ratio:auto;display:block;max-width:100%}
+.media-notice{padding:14px 18px;border-left:3px solid var(--red,#a6161c);background:rgba(166,22,28,.06);font-size:14px;line-height:1.5}
