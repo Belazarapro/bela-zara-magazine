@@ -10,7 +10,11 @@
 
 ## Fonctions ajoutées
 
+- **Mon espace** se présente maintenant en trois onglets principaux : « Mon profil & sécurité », « Mes commandes » (avec livres et formations), et « Mes publications » (avec les quatre filtres Articles, Audio, Vidéos, EPUB).
+- Administration → **Pages & sous-pages** : création, modification, suppression, publication, attribution à un onglet de menu et choix d'une page parente. Les liens apparaissent dans le menu du magazine.
+- Pour relier une page à une autre : ouvrez « Pages & sous-pages », modifiez la page de départ, choisissez la page cible dans la liste « Créer un lien vers une autre page », placez le curseur dans le contenu, cliquez sur « Insérer le lien dans le texte » puis « Enregistrer ». Exemple de format : `[[page:nos-principes|Lire nos principes]]`.
 - Administration → **Médiathèque** : dossiers et sous-dossiers, recherche, tri, déplacement des fichiers et nom original à partir des nouveaux imports. Les médias importés avant cette mise à jour n'ont pas leur nom d'origine dans la base : leur identifiant actuel est affiché par défaut, modifiable via l'API.
+- Les lecteurs de la médiathèque sont maintenant réunis dans un panneau de lecture sobre, avec titre visible, précédent/suivant et lecture automatique du média suivant. Chaque fiche affiche le nom en grand et permet de le corriger directement. Tous les nouveaux imports, même depuis l'éditeur des publications, mémorisent le nom de fichier original.
 - Administration → **Communauté & Newsletter** : lecture, approbation, refus et suppression des commentaires ; abonnés et envois.
 - Publication → **Discussion** : lecture publique, écriture par les membres connectés et réponses après modération.
 - Publication → **Ajouter à mes articles** : favoris des comptes membres existants.

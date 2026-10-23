@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { DatabaseSync } from 'node:sqlite';
 import {createShop} from './shop.mjs';
 import {createCommunity} from './community.mjs';
+import {createPages} from './pages.mjs';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC = path.join(ROOT, 'public');
@@ -185,15 +186,20 @@ async function uploadMedia(req){
     }
     if(!total||!validMagic(ext,head))throw Object.assign(new Error('Format de fichier invalide ou contenu non reconnu'),{status:415});
     await handle.close();handle=null;await fs.promises.rename(temp,dest);
+    // Conserver le nom original pour TOUS les points d'import, pas uniquement la médiathèque.
+    db.prepare('INSERT INTO magazine_media(url,original_name,folder_id) VALUES(?,?,NULL) ON CONFLICT(url) DO UPDATE SET original_name=excluded.original_name')
+      .run('/uploads/'+name,path.basename(declared).slice(0,255));
     return {url:'/uploads/'+name,type:format[1],bytes:total};
   }catch(err){if(handle)await handle.close().catch(()=>{});await fs.promises.unlink(temp).catch(()=>{});throw err;}
 }
 const shop=createShop({db,DATA,readBody,json,requireAdmin,isAllowedOrigin,staticFile});
 const community=createCommunity({db,readJson,json,requireAdmin,authorized,UPLOADS});
+const pages=createPages({db,readJson,json,requireAdmin});
 const server=http.createServer(async(req,res)=>{
   try{
     const url=new URL(req.url,'http://localhost'); const pathname=url.pathname;
     if(pathname.startsWith('/api/community/'))return await community(req,res,url);
+    if(pathname.startsWith('/api/pages')||pathname.startsWith('/api/admin/pages'))return await pages(req,res,url);
     if(pathname.startsWith('/api/shop/'))return await shop(req,res,pathname);
     if(req.method!=='GET'&&req.method!=='HEAD'&&!isAllowedOrigin(req))return json(res,{error:'Origine refusée'},403);
     if(pathname==='/api/health')return json(res,{ok:true});
