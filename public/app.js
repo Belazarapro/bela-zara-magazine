@@ -72,7 +72,7 @@ function adminMain(){document.title='Administration | Bela Zara';
 function memberPanel(){
  const members=state.members||[];
  return `<div class="admin-panel"><h2>MEMBRES INSCRITS (${members.length})</h2><p class="admin-intro">Les membres suspendus ne peuvent plus se connecter ni accéder à leur bibliothèque. Leurs achats et données sont conservés. La suspension est réversible.</p>
- ${members.length?members.map(u=>`<div class="post-admin"><div><strong>${e(u.name)}</strong><br><small>${e(u.email)} · ${u.suspended?'COMPTE SUSPENDU':'COMPTE ACTIF'}</small></div><div class="post-admin-actions"><button class="small-button ${u.suspended?'':'danger'}" data-member-id="${e(u.id)}" data-member-suspended="${u.suspended?'0':'1'}">${u.suspended?'RÉACTIVER':'SUSPENDRE'}</button></div></div>`).join(''):'<p>Aucun membre inscrit pour le moment.</p>'}
+ ${members.length?members.map(u=>`<div class="post-admin"><div><strong>${e(u.name)}</strong><br><small>${e(u.email)} · ${u.suspended?'COMPTE SUSPENDU':'COMPTE ACTIF'}</small></div><div class="post-admin-actions"><button class="small-button ${u.suspended?'':'danger'}" data-member-id="${e(u.id)}" data-member-suspended="${u.suspended?'0':'1'}">${u.suspended?'RÉACTIVER':'SUSPENDRE'}</button><button class="small-button danger" data-delete-member="${e(u.id)}">SUPPRIMER</button></div></div>`).join(''):'<p>Aucun membre inscrit pour le moment.</p>'}
  <p class="upload-hint">La liste est privée et réservée à l’administrateur.</p></div>`;
 }
 async function loadMembers(){const data=await api('/api/shop/admin');state.members=data.clients||[];}
@@ -92,6 +92,18 @@ document.addEventListener('click',async ev=>{
   if(await shopClick(ev,{navigate,refresh:render,toast}))return;
   if(ev.target.closest('#menu-toggle')){const el=$('#nav-links');const open=el.classList.toggle('open');$('#menu-toggle').setAttribute('aria-expanded',String(open));return}
   if(ev.target.closest('#share-post')){if(navigator.share){try{await navigator.share({title:document.title,url:location.href})}catch{}}else{await navigator.clipboard.writeText(location.href);toast('Lien copié !')}return}
+  const removeMember=ev.target.closest('[data-delete-member]');
+  if(removeMember){
+    const member=(state.members||[]).find(u=>u.id===removeMember.dataset.deleteMember);
+    if(!member)return;
+    if(!confirm('Supprimer définitivement le compte de '+member.name+' ('+member.email+') ? Cette action est irréversible. Les comptes ayant des commandes seront protégés.'))return;
+    try{
+      removeMember.disabled=true;
+      await api('/api/shop/admin/members/'+encodeURIComponent(member.id),{method:'DELETE'});
+      await loadMembers();$('#admin-content').innerHTML=memberPanel();toast('Compte membre supprimé');
+    }catch(err){removeMember.disabled=false;toast(err.message)}
+    return;
+  }
   const memberButton=ev.target.closest('[data-member-id]');
   if(memberButton){
     const suspended=memberButton.dataset.memberSuspended==='1';
