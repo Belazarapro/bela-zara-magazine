@@ -134,8 +134,29 @@ export function createShop({db,DATA,readBody,json,requireAdmin,isAllowedOrigin,s
   if(upload&&req.method==='POST'){
    if(!requireAdmin(req,res))return;if(!db.prepare('SELECT id FROM shop_products WHERE id=?').get(upload[1]))throw bad('Produit introuvable',404);
    const ext=path.extname(decodeURIComponent(String(req.headers['x-upload-name']||''))).toLowerCase(),size={'.epub':60,'.pdf':60,'.mp3':100,'.m4a':100,'.mp4':200,'.webm':200}[ext];if(!size)throw bad('Fichier EPUB, PDF, MP3, M4A, MP4 ou WebM attendu',415);
-   const b=await readBody(req,size*1024*1024),head=b.toString('ascii',0,8),valid=(ext==='.epub'&&head.startsWith('PK'))||(ext==='.pdf'&&head.startsWith('%PDF'))||(ext==='.mp3'&&(head.startsWith('ID3')||(b[0]===255&&(b[1]&224)===224)))||(ext==='.webm'&&b.subarray(0,4).equals(Buffer.from([26,69,223,163])))||(['.mp4','.m4a'].includes(ext)&&head.slice(4,8)==='ftyp');
-   if(!b.length||!valid)throw bad('Format non reconnu',415);const filename=crypto.randomUUID()+ext;fs.writeFileSync(path.join(dir,filename),b,{flag:'wx',mode:0o600});db.prepare('UPDATE shop_products SET private_file=? WHERE id=?').run(filename,upload[1]);return json(res,{ok:true},201);
+   const filename=crypto.randomUUID()+ext,temp=path.join(dir,'.'+filename+'.part'),dest=path.join(dir,filename);
+   let fd,total=0,head=Buffer.alloc(0);
+   try{
+    fd=await fs.promises.open(temp,'wx',0o600);
+    for await(const chunk of req){
+     total+=chunk.length;
+     if(total>size*1024*1024)throw bad('Fichier trop volumineux ('+size+' Mo maximum)',413);
+     if(head.length<32)head=Buffer.concat([head,chunk.subarray(0,32-head.length)]);
+     let offset=0;
+     while(offset<chunk.length){const written=await fd.write(chunk,offset,chunk.length-offset);offset+=written.bytesWritten;}
+    }
+    const ascii=head.toString('ascii',0,8);
+    const valid=(ext==='.epub'&&ascii.startsWith('PK'))||(ext==='.pdf'&&ascii.startsWith('%PDF'))||(ext==='.mp3'&&(ascii.startsWith('ID3')||(head[0]===255&&(head[1]&224)===224)))||(ext==='.webm'&&head.subarray(0,4).equals(Buffer.from([26,69,223,163])))||(['.mp4','.m4a'].includes(ext)&&ascii.slice(4,8)==='ftyp');
+    if(!total||!valid)throw bad('Format du fichier non reconnu',415);
+    await fd.close();fd=null;
+    await fs.promises.rename(temp,dest);
+    db.prepare('UPDATE shop_products SET private_file=? WHERE id=?').run(filename,upload[1]);
+    return json(res,{ok:true},201);
+   }catch(error){
+    if(fd)await fd.close().catch(()=>{});
+    await fs.promises.unlink(temp).catch(()=>{});
+    throw error;
+   }
   }
   if(url==='/api/shop/admin/grant'&&req.method==='POST'){
    if(!requireAdmin(req,res))return;const b=await data(req),u=db.prepare('SELECT id FROM shop_users WHERE email=?').get(email(b.email)),p=db.prepare('SELECT id FROM shop_products WHERE id=?').get(b.productId);if(!u||!p)throw bad('Compte ou produit introuvable',404);db.prepare('INSERT OR IGNORE INTO shop_grants VALUES(?,?,NULL)').run(u.id,p.id);return json(res,{ok:true});
