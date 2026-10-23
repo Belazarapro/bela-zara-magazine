@@ -10,6 +10,9 @@ export function createShop({db,DATA,readBody,json,requireAdmin,isAllowedOrigin,s
  CREATE TABLE IF NOT EXISTS shop_orders(id TEXT PRIMARY KEY,user_id TEXT NOT NULL,items TEXT NOT NULL,total INTEGER NOT NULL,status TEXT NOT NULL DEFAULT 'pending',stripe_session TEXT UNIQUE,payment_intent TEXT,created_at TEXT DEFAULT CURRENT_TIMESTAMP);
  CREATE TABLE IF NOT EXISTS shop_grants(user_id TEXT NOT NULL,product_id TEXT NOT NULL,order_id TEXT,PRIMARY KEY(user_id,product_id));
  CREATE TABLE IF NOT EXISTS shop_events(id TEXT PRIMARY KEY);`);
+ // Migration compatible avec les comptes et achats existants.
+ if(!db.prepare("PRAGMA table_info(shop_users)").all().some(c=>c.name==='suspended'))
+   db.exec("ALTER TABLE shop_users ADD COLUMN suspended INTEGER NOT NULL DEFAULT 0");
  const bad=(message,status=400)=>Object.assign(new Error(message),{status});
  const sha=s=>crypto.createHash('sha256').update(s).digest('hex');
  const token=()=>crypto.randomBytes(32).toString('hex');
@@ -17,7 +20,7 @@ export function createShop({db,DATA,readBody,json,requireAdmin,isAllowedOrigin,s
  const hashed=p=>{if(typeof p!=='string'||p.length<12||p.length>200)throw bad('Choisissez un mot de passe de 12 caractères minimum');const salt=crypto.randomBytes(16).toString('hex');return `${salt}$${crypto.scryptSync(p,salt,64,{N:32768,maxmem:64*1024*1024}).toString('hex')}`};
  const verify=(p,stored)=>{if(typeof p!=='string'||p.length>200||!stored)return false;const [salt,hex]=stored.split('$');if(!salt||!hex)return false;const b=Buffer.from(hex,'hex'),a=crypto.scryptSync(p,salt,64,{N:32768,maxmem:64*1024*1024});return a.length===b.length&&crypto.timingSafeEqual(a,b)};
  const cook=req=>req.headers.cookie?.match(/(?:^|;\s*)bz_client=([a-f0-9]{64})(?:;|$)/)?.[1];
- const me=req=>{const t=cook(req);return t?db.prepare('SELECT u.id,u.email,u.name FROM shop_users u JOIN shop_sessions s ON s.user_id=u.id WHERE s.token_hash=? AND s.expiry>?').get(sha(t),Date.now()):null};
+ const me=req=>{const t=cook(req);return t?db.prepare('SELECT u.id,u.email,u.name FROM shop_users u JOIN shop_sessions s ON s.user_id=u.id WHERE s.token_hash=? AND s.expiry>? AND u.suspended=0').get(sha(t),Date.now()):null};
  const secure=req=>(req.socket.encrypted||req.headers['x-forwarded-proto']==='https')?'; Secure':'';
  const login=(req,res,u)=>{const t=token();db.prepare('INSERT INTO shop_sessions VALUES(?,?,?)').run(sha(t),u.id,Date.now()+604800000);res.setHeader('Set-Cookie',`bz_client=${t}; HttpOnly; Path=/; SameSite=Lax; Max-Age=604800${secure(req)}`)};
  const data=async req=>{try{return JSON.parse((await readBody(req,65536)).toString())}catch{throw bad('Données invalides')}};
@@ -65,7 +68,7 @@ export function createShop({db,DATA,readBody,json,requireAdmin,isAllowedOrigin,s
   }
   if(url==='/api/shop/login'&&req.method==='POST'){
    limit(req,'login');const b=await data(req),u=db.prepare('SELECT * FROM shop_users WHERE email=?').get(email(b.email));
-   if(!verify(b.password,u?.password||hashed('faux-mot-de-passe'))||!u)throw bad('Identifiants incorrects',401);login(req,res,u);return json(res,{user:{id:u.id,name:u.name,email:u.email}});
+   if(!verify(b.password,u?.password||hashed('faux-mot-de-passe'))||!u)throw bad('Identifiants incorrects',401);if(u.suspended)throw bad('Ce compte est suspendu. Contactez le magazine.',403);login(req,res,u);return json(res,{user:{id:u.id,name:u.name,email:u.email}});
   }
   if(url==='/api/shop/logout'&&req.method==='POST'){const t=cook(req);if(t)db.prepare('DELETE FROM shop_sessions WHERE token_hash=?').run(sha(t));res.setHeader('Set-Cookie',`bz_client=; HttpOnly; Path=/; SameSite=Lax; Max-Age=0${secure(req)}`);return json(res,{ok:true});}
   if(url==='/api/shop/checkout'&&req.method==='POST'){
@@ -86,7 +89,18 @@ export function createShop({db,DATA,readBody,json,requireAdmin,isAllowedOrigin,s
    res.setHeader('Cache-Control','private, no-store');if(!reading)res.setHeader('Content-Disposition',`attachment; filename="${p.private_file}"`);return staticFile(res,dir,'/'+p.private_file,req);
   }
   if(url==='/api/shop/admin'&&req.method==='GET'){
-   if(!requireAdmin(req,res))return;return json(res,{products:products().map(pub),clients:db.prepare('SELECT name,email FROM shop_users ORDER BY rowid DESC LIMIT 500').all(),orders:db.prepare('SELECT o.id,o.total,o.status,o.created_at,u.email FROM shop_orders o JOIN shop_users u ON o.user_id=u.id ORDER BY o.created_at DESC LIMIT 500').all()});
+   if(!requireAdmin(req,res))return;return json(res,{products:products().map(pub),clients:db.prepare('SELECT id,name,email,suspended FROM shop_users ORDER BY rowid DESC LIMIT 500').all(),orders:db.prepare('SELECT o.id,o.total,o.status,o.created_at,u.email FROM shop_orders o JOIN shop_users u ON o.user_id=u.id ORDER BY o.created_at DESC LIMIT 500').all()});
+  }
+  const memberAction=url.match(/^\/api\/shop\/admin\/members\/([a-f0-9-]{36})\/status$/);
+  if(memberAction&&req.method==='PUT'){
+   if(!requireAdmin(req,res))return;
+   const b=await data(req);
+   if(typeof b.suspended!=='boolean')throw bad('Statut invalide');
+   const user=db.prepare('SELECT id FROM shop_users WHERE id=?').get(memberAction[1]);
+   if(!user)throw bad('Membre introuvable',404);
+   db.prepare('UPDATE shop_users SET suspended=? WHERE id=?').run(b.suspended?1:0,user.id);
+   if(b.suspended)db.prepare('DELETE FROM shop_sessions WHERE user_id=?').run(user.id);
+   return json(res,{ok:true});
   }
   if(url==='/api/shop/admin/products'&&req.method==='POST'){
    if(!requireAdmin(req,res))return;const b=await data(req);valid(b);const id=crypto.randomUUID();db.prepare('INSERT INTO shop_products(id,title,description,kind,price,cover,active) VALUES(?,?,?,?,?,?,?)').run(id,b.title.trim(),b.description.trim(),b.kind,b.price,cover(b.cover),b.active?1:0);return json(res,{id},201);
