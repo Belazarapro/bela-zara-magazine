@@ -120,6 +120,22 @@ export function createShop({db,DATA,readBody,json,requireAdmin,isAllowedOrigin,s
    if(b.suspended)db.prepare('DELETE FROM shop_sessions WHERE user_id=?').run(user.id);
    return json(res,{ok:true});
   }
+  const memberDelete=url.match(/^\/api\/shop\/admin\/members\/([a-f0-9-]{36})$/);
+  if(memberDelete&&req.method==='DELETE'){
+   if(!requireAdmin(req,res))return;
+   const id=memberDelete[1],user=db.prepare('SELECT id,name FROM shop_users WHERE id=?').get(id);
+   if(!user)throw bad('Membre introuvable',404);
+   if(db.prepare('SELECT 1 FROM shop_orders WHERE user_id=? LIMIT 1').get(id))
+    throw bad('Ce membre possède un historique de commandes. Suspendez son compte : sa suppression nécessite une procédure de conservation des justificatifs.',409);
+   db.exec('BEGIN IMMEDIATE');
+   try{
+    db.prepare('DELETE FROM shop_sessions WHERE user_id=?').run(id);
+    db.prepare('DELETE FROM shop_grants WHERE user_id=?').run(id);
+    db.prepare('DELETE FROM shop_users WHERE id=?').run(id);
+    db.exec('COMMIT');
+   }catch(err){db.exec('ROLLBACK');throw err;}
+   return json(res,{ok:true});
+  }
   if(url==='/api/shop/admin/products'&&req.method==='POST'){
    if(!requireAdmin(req,res))return;const b=await data(req);valid(b);const id=crypto.randomUUID();db.prepare('INSERT INTO shop_products(id,title,description,kind,price,cover,active) VALUES(?,?,?,?,?,?,?)').run(id,b.title.trim(),b.description.trim(),b.kind,b.price,cover(b.cover),b.active?1:0);return json(res,{id},201);
   }
