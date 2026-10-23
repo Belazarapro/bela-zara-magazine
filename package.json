@@ -6,7 +6,8 @@
   "description": "Blog-magazine indépendant Bela Zara, sans WordPress et sans dépendances npm",
   "scripts": {
     "start": "node server-v3.mjs",
-    "dev": "node --watch server-v3.mjs"
+    "dev": "node --watch server-v3.mjs",
+    "test": "node --test tests/*.test.mjs"
   },
   "engines": {
     "node": ">=22.13.0"

@@ -1,0 +1,28 @@
+.community-footer{margin:1.5rem 0;padding:1.3rem;border-top:3px solid #aa171d;max-width:460px}
+.community-footer strong,.community-article h2,.community-playlist h2{letter-spacing:.05em}
+.community-footer input,.community-toolbar input,.community-toolbar select,.community-admin-grid input,.community-admin-grid textarea,.community-member input,.community-article textarea,.media-admin-item select{width:100%;padding:.7rem;border:1px solid #aaa;background:#fff;color:#181818;margin:.4rem 0}
+.community-footer button{margin-top:.4rem}
+.community-article,.community-playlist,.community-member{margin-top:2rem;padding-top:1rem;border-top:3px solid #a6161c}
+.community-comment{padding:.8rem;border-bottom:1px solid #ccc;margin-bottom:.5rem;background:rgba(120,120,120,.045);overflow-wrap:anywhere}
+.community-comment p{white-space:pre-wrap;margin:.4rem 0}
+.community-comment button{margin:.2rem .25rem .2rem 0}
+.community-article form{margin:1rem 0}
+.community-article textarea{min-height:100px;display:block}
+.community-toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:.8rem;margin:1rem 0}
+.community-toolbar>*{flex:1;min-width:190px}
+.community-toolbar form{display:flex;gap:.5rem}
+.community-toolbar form input{min-width:100px}
+.community-folders{display:flex;gap:.5rem;flex-wrap:wrap;margin:1rem 0}
+.community-filename{display:block;overflow-wrap:anywhere;font-size:.85rem}
+.community-admin-grid{display:grid;grid-template-columns:1fr 1fr;gap:2rem}
+.community-admin-grid form label{display:block;margin:.6rem 0}
+.community-subscribers{max-height:240px;overflow:auto;border:1px solid #ddd;padding:.5rem}
+.community-subscribers p{overflow-wrap:anywhere;font-size:.85rem;margin:.3rem 0}
+.community-tabs,.community-playlist-items{display:flex;gap:.5rem;flex-wrap:wrap;margin:1rem 0}
+.community-tabs .active{background:#a6161c;color:white}
+.community-playlist-items a{display:inline-block;border:1px solid #a6161c;padding:.5rem;color:inherit;text-decoration:none}
+.community-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:1rem}
+.community-card{display:flex;flex-direction:column;gap:.5rem;text-decoration:none;color:inherit}
+.community-card img{width:100%;height:120px;object-fit:cover}
+.community-card small{color:#a6161c}
+@media(max-width:780px){.community-admin-grid{grid-template-columns:1fr}.community-toolbar{display:block}}

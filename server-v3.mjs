@@ -6,6 +6,7 @@ import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { DatabaseSync } from 'node:sqlite';
 import {createShop} from './shop.mjs';
+import {createCommunity} from './community.mjs';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC = path.join(ROOT, 'public');
@@ -188,9 +189,11 @@ async function uploadMedia(req){
   }catch(err){if(handle)await handle.close().catch(()=>{});await fs.promises.unlink(temp).catch(()=>{});throw err;}
 }
 const shop=createShop({db,DATA,readBody,json,requireAdmin,isAllowedOrigin,staticFile});
+const community=createCommunity({db,readJson,json,requireAdmin,authorized,UPLOADS});
 const server=http.createServer(async(req,res)=>{
   try{
     const url=new URL(req.url,'http://localhost'); const pathname=url.pathname;
+    if(pathname.startsWith('/api/community/'))return await community(req,res,url);
     if(pathname.startsWith('/api/shop/'))return await shop(req,res,pathname);
     if(req.method!=='GET'&&req.method!=='HEAD'&&!isAllowedOrigin(req))return json(res,{error:'Origine refusée'},403);
     if(pathname==='/api/health')return json(res,{ok:true});
@@ -240,7 +243,7 @@ const server=http.createServer(async(req,res)=>{
       if(!requireAdmin(req,res))return;const input=await readJson(req);
       if(!Array.isArray(input.ids))return json(res,{error:'Liste d’identifiants invalide'},400);
       const stmt=db.prepare('UPDATE posts SET sort_order=? WHERE id=?');for(let i=0;i<input.ids.length&&i<500;i++)stmt.run(i+1,Number(input.ids[i]));
-      return json(res,{ok:true});
+    return json(res,{ok:true});
     }
     if(pathname==='/api/admin/settings'&&req.method==='PUT'){
       if(!requireAdmin(req,res))return;const input=await readJson(req);
