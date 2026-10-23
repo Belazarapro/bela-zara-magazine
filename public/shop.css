@@ -9,3 +9,14 @@
 .page form[data-shop-form="profile"],
 .page form[data-shop-form="password"] {max-width:100%;min-width:0;}
 @media(max-width:650px){.page form[data-shop-form="password"] .red-button,.page form[data-shop-form="profile"] .red-button{max-width:100%;white-space:normal;}}
+
+/* Complete ebook reader, navigable on mobile and desktop */
+.shop-reader-toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:14px 0;padding:12px;background:#f0ebe2;border:1px solid #d8cfc0}
+.shop-reader-toolbar label{font-weight:800;margin:0}
+.shop-reader-toolbar .shop-toc{flex:1 1 200px;min-width:0;max-width:100%;font-size:16px;padding:10px;border:1px solid #bbb;background:white}
+.shop-reader-toolbar button{white-space:normal}
+.shop-book{width:100%;height:70vh;min-height:420px;overflow:auto;position:relative;border:1px solid #d6cfc1;background:#faf8f4}
+.shop-book iframe{max-width:100%}
+.shop-pdf{width:100%;height:75vh;min-height:500px;border:1px solid #d6cfc1}
+.shop-card button[disabled]{opacity:.62;cursor:not-allowed}
+@media(max-width:650px){.shop-reader-toolbar{flex-direction:column;align-items:stretch}.shop-reader-toolbar .shop-toc{width:100%;flex:auto}.shop-book{height:68vh;min-height:420px}.shop-pdf{height:75vh}}
