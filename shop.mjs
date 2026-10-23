@@ -70,6 +70,23 @@ export function createShop({db,DATA,readBody,json,requireAdmin,isAllowedOrigin,s
    limit(req,'login');const b=await data(req),u=db.prepare('SELECT * FROM shop_users WHERE email=?').get(email(b.email));
    if(!verify(b.password,u?.password||hashed('faux-mot-de-passe'))||!u)throw bad('Identifiants incorrects',401);if(u.suspended)throw bad('Ce compte est suspendu. Contactez le magazine.',403);login(req,res,u);return json(res,{user:{id:u.id,name:u.name,email:u.email}});
   }
+  if(url==='/api/shop/profile'&&req.method==='PUT'){
+   const u=required(req),b=await data(req),name=String(b.name||'').trim();
+   if(name.length<2||name.length>100)throw bad('Le nom doit compter entre 2 et 100 caractères');
+   db.prepare('UPDATE shop_users SET name=? WHERE id=?').run(name,u.id);
+   return json(res,{user:{...u,name}});
+  }
+  if(url==='/api/shop/password'&&req.method==='PUT'){
+   const u=required(req);limit(req,'password',8);const b=await data(req);
+   const current=db.prepare('SELECT password FROM shop_users WHERE id=?').get(u.id);
+   if(!verify(b.currentPassword,current?.password))throw bad('Mot de passe actuel incorrect',401);
+   const updated=hashed(b.newPassword);
+   if(verify(b.newPassword,current.password))throw bad('Le nouveau mot de passe doit être différent');
+   db.prepare('UPDATE shop_users SET password=? WHERE id=?').run(updated,u.id);
+   const t=cook(req);
+   db.prepare('DELETE FROM shop_sessions WHERE user_id=? AND token_hash!=?').run(u.id,sha(t));
+   return json(res,{ok:true});
+  }
   if(url==='/api/shop/logout'&&req.method==='POST'){const t=cook(req);if(t)db.prepare('DELETE FROM shop_sessions WHERE token_hash=?').run(sha(t));res.setHeader('Set-Cookie',`bz_client=; HttpOnly; Path=/; SameSite=Lax; Max-Age=0${secure(req)}`);return json(res,{ok:true});}
   if(url==='/api/shop/checkout'&&req.method==='POST'){
    limit(req,'checkout');const u=required(req);if(!ready())throw bad('Paiements non activés',503);
