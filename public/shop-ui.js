@@ -49,7 +49,7 @@ try{
     if(item.subitems?.length)addChapters(item.subitems,depth+1);
    }
   }
-  try{addChapters(await book.loaded.navigation)}catch(err){console.warn('Sommaire EPUB indisponible',err)}
+  try{const nav=await book.loaded.navigation;addChapters(nav?.toc||book.navigation?.toc||[])}catch(err){console.warn('Sommaire EPUB indisponible',err)}
   toc.addEventListener('change',()=>{if(toc.value)rendition.display(toc.value).catch(err=>toast('Chapitre inaccessible : '+err.message))});
   for(const key of ['prev','next']){
    box.querySelector('[data-'+key+']').addEventListener('click',()=>rendition[key]().catch(err=>toast('Navigation impossible : '+err.message)));
@@ -58,6 +58,8 @@ try{
    const link=String(href||'');
    if(/^https?:\/\//i.test(link)){
     try{window.open(link,'_blank','noopener,noreferrer')}catch{}
+   }else if(link&&!/^(?:javascript:|data:)/i.test(link)){
+    rendition.display(link).catch(()=>{});
    }
   });
   rendition.on('relocated',location=>{
