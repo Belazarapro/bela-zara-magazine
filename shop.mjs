@@ -57,7 +57,7 @@ export function createShop({db,DATA,readBody,json,requireAdmin,isAllowedOrigin,s
   }
   if(!url.startsWith('/api/shop/'))return false;
   if(!['GET','HEAD'].includes(req.method)&&!isAllowedOrigin(req))throw bad('Origine interdite',403);
-  if(url==='/api/shop/catalog'&&req.method==='GET')return json(res,{products:products().filter(p=>p.active).map(pub),salesReady:ready()});
+  if(url==='/api/shop/catalog'&&req.method==='GET')return json(res,{products:products().filter(p=>p.active).map(pub),salesReady:ready(),registrationReady:legal()});
   if(url==='/api/shop/me'&&req.method==='GET'){
    const u=me(req);return json(res,{user:u,owned:u?products().filter(p=>access(u,p)).map(pub):[],orders:u?db.prepare('SELECT id,total,status,created_at FROM shop_orders WHERE user_id=? ORDER BY created_at DESC').all(u.id):[]});
   }
