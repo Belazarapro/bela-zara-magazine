@@ -9,7 +9,8 @@ export function createShop({db,DATA,readBody,json,requireAdmin,isAllowedOrigin,s
  CREATE TABLE IF NOT EXISTS shop_products(id TEXT PRIMARY KEY,title TEXT NOT NULL,description TEXT NOT NULL,kind TEXT NOT NULL,price INTEGER NOT NULL,cover TEXT NOT NULL DEFAULT '',private_file TEXT NOT NULL DEFAULT '',active INTEGER NOT NULL DEFAULT 0);
  CREATE TABLE IF NOT EXISTS shop_orders(id TEXT PRIMARY KEY,user_id TEXT NOT NULL,items TEXT NOT NULL,total INTEGER NOT NULL,status TEXT NOT NULL DEFAULT 'pending',stripe_session TEXT UNIQUE,payment_intent TEXT,created_at TEXT DEFAULT CURRENT_TIMESTAMP);
  CREATE TABLE IF NOT EXISTS shop_grants(user_id TEXT NOT NULL,product_id TEXT NOT NULL,order_id TEXT,PRIMARY KEY(user_id,product_id));
- CREATE TABLE IF NOT EXISTS shop_events(id TEXT PRIMARY KEY);`);
+ CREATE TABLE IF NOT EXISTS shop_events(id TEXT PRIMARY KEY);
+ CREATE TABLE IF NOT EXISTS shop_tracks(id TEXT PRIMARY KEY,product_id TEXT NOT NULL,title TEXT NOT NULL,filename TEXT NOT NULL,position INTEGER NOT NULL DEFAULT 0);`);
  // Migration compatible avec les comptes et achats existants.
  if(!db.prepare("PRAGMA table_info(shop_users)").all().some(c=>c.name==='suspended'))
    db.exec("ALTER TABLE shop_users ADD COLUMN suspended INTEGER NOT NULL DEFAULT 0");
@@ -95,9 +96,77 @@ export function createShop({db,DATA,readBody,json,requireAdmin,isAllowedOrigin,s
    const items=[...new Set(b.items)].map(id=>db.prepare('SELECT * FROM shop_products WHERE id=?').get(id));
    if(items.some(p=>!p||!p.active||!p.private_file||access(u,p)))throw bad('Produit indisponible ou déjà acheté');
    const id=crypto.randomUUID(),total=items.reduce((n,p)=>n+p.price,0);db.prepare('INSERT INTO shop_orders(id,user_id,items,total) VALUES(?,?,?,?)').run(id,u.id,JSON.stringify(items.map(p=>p.id)),total);
-   const origin=new URL(process.env.SITE_ORIGIN).origin,params=new URLSearchParams({mode:'payment',success_url:origin+'/mon-espace?paiement=retour',cancel_url:origin+'/boutique',customer_email:u.email,client_reference_id:id,'metadata[orderId]':id,'payment_method_types[0]':'card'});
+   const origin=new URL(process.env.SITE_ORIGIN).origin,params=new URLSearchParams({mode:'payment',success_url:origin+'/bibliotheque/'+items[0].id+'?paiement=retour',cancel_url:origin+'/boutique',customer_email:u.email,client_reference_id:id,'metadata[orderId]':id,'payment_method_types[0]':'card'});
    items.forEach((p,i)=>{params.set(`line_items[${i}][price_data][currency]`,'eur');params.set(`line_items[${i}][price_data][product_data][name]`,p.title);params.set(`line_items[${i}][price_data][unit_amount]`,String(p.price));params.set(`line_items[${i}][quantity]`,'1')});
    try{const response=await fetch('https://api.stripe.com/v1/checkout/sessions',{method:'POST',headers:{Authorization:'Bearer '+process.env.STRIPE_SECRET_KEY,'Content-Type':'application/x-www-form-urlencoded'},body:params,signal:AbortSignal.timeout(20000)});const s=await response.json();if(!response.ok||!s.id||!s.url)throw bad('Erreur du prestataire de paiement',502);db.prepare('UPDATE shop_orders SET stripe_session=? WHERE id=?').run(s.id,id);return json(res,{url:s.url})}catch(e){db.prepare("UPDATE shop_orders SET status='failed' WHERE id=?").run(id);throw e}
+  }
+  const playlist=url.match(/^\/api\/shop\/playlist\/([a-f0-9-]{36})$/);
+  if(playlist&&req.method==='GET'){
+    const user=required(req);
+    const product=db.prepare('SELECT * FROM shop_products WHERE id=?').get(playlist[1]);
+    if(!product||!access(user,product))throw bad('Ce contenu n’est pas dans votre bibliothèque.',403);
+    if(!['audio','video','formation'].includes(product.kind))throw bad('Ce produit ne possède pas de playlist.',400);
+    const list=[];
+    if(/^[a-f0-9-]{36}\.(mp3|m4a|mp4|webm)$/.test(product.private_file))
+      list.push({id:'principal',title:product.title,url:'/api/shop/download/'+product.id+'?lire=1'});
+    for(const track of db.prepare('SELECT id,title FROM shop_tracks WHERE product_id=? ORDER BY position,rowid').all(product.id))
+      list.push({id:track.id,title:track.title,url:'/api/shop/track/'+track.id});
+    return json(res,{product:{id:product.id,title:product.title,description:product.description,kind:product.kind,cover:product.cover},tracks:list});
+  }
+  const trackStream=url.match(/^\/api\/shop\/track\/([a-f0-9-]{36})$/);
+  if(trackStream&&['GET','HEAD'].includes(req.method)){
+    const user=required(req),track=db.prepare('SELECT t.*,p.id AS owner_product FROM shop_tracks t JOIN shop_products p ON p.id=t.product_id WHERE t.id=?').get(trackStream[1]);
+    if(!track||!access(user,{id:track.owner_product})||!/^[a-f0-9-]{36}\.(mp3|m4a|mp4|webm)$/.test(track.filename))throw bad('Fichier réservé aux membres autorisés',403);
+    res.setHeader('Cache-Control','private, no-store');return staticFile(res,dir,'/'+track.filename,req);
+  }
+  const adminTracks=url.match(/^\/api\/shop\/admin\/playlist\/([a-f0-9-]{36})$/);
+  if(adminTracks&&req.method==='GET'){
+    if(!requireAdmin(req,res))return;
+    return json(res,{tracks:db.prepare('SELECT id,title,position FROM shop_tracks WHERE product_id=? ORDER BY position,rowid').all(adminTracks[1])});
+  }
+  if(adminTracks&&req.method==='POST'){
+    if(!requireAdmin(req,res))return;
+    const product=db.prepare('SELECT id,kind FROM shop_products WHERE id=?').get(adminTracks[1]);
+    if(!product||!['audio','video','formation'].includes(product.kind))throw bad('La playlist nécessite un produit audio ou vidéo',400);
+    let original='';try{original=decodeURIComponent(String(req.headers['x-upload-name']||''));}catch{throw bad('Nom de fichier invalide')}
+    const ext=path.extname(original).toLowerCase();
+    const supported=product.kind==='audio'?['.mp3','.m4a']:['.mp4','.webm'];
+    if(!supported.includes(ext))throw bad('Format incompatible : '+supported.join(', '),415);
+    const max=ext==='.mp3'||ext==='.m4a'?100:200;
+    const file=crypto.randomUUID()+ext,filename=path.join(dir,file),temp=filename+'.part';let handle,size=0,head=Buffer.alloc(0);
+    try{
+      handle=await fs.promises.open(temp,'wx',0o600);
+      for await(const chunk of req){
+        size+=chunk.length;if(size>max*1024*1024)throw bad('Fichier dépassant '+max+' Mo',413);
+        if(head.length<24)head=Buffer.concat([head,chunk.subarray(0,24-head.length)]);
+        let at=0;while(at<chunk.length){const wrote=await handle.write(chunk,at,chunk.length-at);at+=wrote.bytesWritten}
+      }
+      const signature=head.toString('ascii',0,8);
+      const valid=ext==='.mp3'?(signature.startsWith('ID3')||(head[0]===255&&(head[1]&224)===224)):ext==='.webm'?head.subarray(0,4).equals(Buffer.from([26,69,223,163])):signature.slice(4,8)==='ftyp';
+      if(!size||!valid)throw bad('Contenu audio/vidéo non reconnu',415);
+      await handle.close();handle=null;await fs.promises.rename(temp,filename);
+      const title=path.basename(original,ext).replace(/[_-]+/g,' ').trim().slice(0,150)||'Épisode';
+      const position=db.prepare('SELECT COALESCE(MAX(position),0)+1 AS next FROM shop_tracks WHERE product_id=?').get(product.id).next;
+      const id=crypto.randomUUID();db.prepare('INSERT INTO shop_tracks(id,product_id,title,filename,position) VALUES(?,?,?,?,?)').run(id,product.id,title,file,position);
+      return json(res,{id,title},201);
+    }catch(e){if(handle)await handle.close().catch(()=>{});await fs.promises.unlink(temp).catch(()=>{});throw e}
+  }
+  const changeTrack=url.match(/^\/api\/shop\/admin\/tracks\/([a-f0-9-]{36})$/);
+  if(changeTrack&&req.method==='PUT'){
+    if(!requireAdmin(req,res))return;
+    const b=await data(req),title=String(b.title||'').trim();
+    if(!title||title.length>150)throw bad('Titre invalide');
+    const updated=db.prepare('UPDATE shop_tracks SET title=? WHERE id=?').run(title,changeTrack[1]);
+    if(!updated.changes)throw bad('Piste introuvable',404);
+    return json(res,{ok:true});
+  }
+  if(changeTrack&&req.method==='DELETE'){
+    if(!requireAdmin(req,res))return;
+    const track=db.prepare('SELECT * FROM shop_tracks WHERE id=?').get(changeTrack[1]);
+    if(!track)throw bad('Piste introuvable',404);
+    db.prepare('DELETE FROM shop_tracks WHERE id=?').run(track.id);
+    await fs.promises.unlink(path.join(dir,track.filename)).catch(()=>{});
+    return json(res,{ok:true});
   }
   const dl=url.match(/^\/api\/shop\/download\/([a-f0-9-]{36})$/);
   if(dl&&['GET','HEAD'].includes(req.method)){
@@ -107,7 +176,7 @@ export function createShop({db,DATA,readBody,json,requireAdmin,isAllowedOrigin,s
    res.setHeader('Cache-Control','private, no-store');if(!reading)res.setHeader('Content-Disposition',`attachment; filename="${p.private_file}"`);return staticFile(res,dir,'/'+p.private_file,req);
   }
   if(url==='/api/shop/admin'&&req.method==='GET'){
-   if(!requireAdmin(req,res))return;return json(res,{products:products().map(pub),clients:db.prepare('SELECT id,name,email,suspended FROM shop_users ORDER BY rowid DESC LIMIT 500').all(),orders:db.prepare('SELECT o.id,o.total,o.status,o.created_at,u.email FROM shop_orders o JOIN shop_users u ON o.user_id=u.id ORDER BY o.created_at DESC LIMIT 500').all()});
+   if(!requireAdmin(req,res))return;return json(res,{products:products().map(p=>({...pub(p),tracks:db.prepare('SELECT id,title,position FROM shop_tracks WHERE product_id=? ORDER BY position,rowid').all(p.id)})),clients:db.prepare('SELECT id,name,email,suspended FROM shop_users ORDER BY rowid DESC LIMIT 500').all(),orders:db.prepare('SELECT o.id,o.total,o.status,o.created_at,u.email FROM shop_orders o JOIN shop_users u ON o.user_id=u.id ORDER BY o.created_at DESC LIMIT 500').all()});
   }
   const memberAction=url.match(/^\/api\/shop\/admin\/members\/([a-f0-9-]{36})\/status$/);
   if(memberAction&&req.method==='PUT'){

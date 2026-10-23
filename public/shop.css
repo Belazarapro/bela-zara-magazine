@@ -20,3 +20,44 @@
 .shop-pdf{width:100%;height:75vh;min-height:500px;border:1px solid #d6cfc1}
 .shop-card button[disabled]{opacity:.62;cursor:not-allowed}
 @media(max-width:650px){.shop-reader-toolbar{flex-direction:column;align-items:stretch}.shop-reader-toolbar .shop-toc{width:100%;flex:auto}.shop-book{height:68vh;min-height:420px}.shop-pdf{height:75vh}}
+
+/* BELA ZARA : salon privé de lecture et d'écoute */
+.product-private{max-width:1380px;margin:0 auto;padding:34px clamp(18px,4vw,58px) 85px;color:#221f1b}
+.reader-back{display:inline-flex;margin-bottom:26px;color:#a91d26;font-weight:900;text-decoration:none;letter-spacing:.07em}
+.reader-heading{display:flex;align-items:center;justify-content:space-between;gap:30px;border-bottom:5px solid #171717;padding-bottom:25px;margin-bottom:30px}
+.reader-heading-text{max-width:900px}.reader-eyebrow{color:#a61921;font-size:13px;font-weight:900;letter-spacing:.18em}
+.reader-heading h1{font:900 clamp(38px,5vw,70px)/.99 var(--display,Impact,sans-serif);margin:12px 0 16px;text-transform:uppercase;letter-spacing:-.02em}
+.reader-heading p{font:18px/1.55 var(--serif,Georgia,serif);max-width:760px;color:#59534c}
+.reader-cover{max-width:125px;max-height:160px;object-fit:contain;box-shadow:0 8px 32px #0002}
+.reader-workspace{display:grid;grid-template-columns:minmax(210px,260px) minmax(0,1fr);gap:24px;align-items:start}
+.reader-sidebar{background:#181818;color:#f4f1eb;border-top:5px solid #ae1c25;padding:22px 14px;min-width:0;position:sticky;top:18px;max-height:84vh;overflow:auto}
+.reader-sidebar-title{font:900 25px var(--display,Impact,sans-serif);padding:0 10px 18px;border-bottom:1px solid #555;letter-spacing:.03em}
+.reader-sidebar p{color:#ded7ce;line-height:1.5;padding:8px}
+.reader-chapter{width:100%;padding:14px 12px;background:transparent;color:#e7e3de;text-align:left;font:700 14px/1.4 system-ui,sans-serif;border:0;border-bottom:1px solid #464242;cursor:pointer;overflow-wrap:anywhere}
+.reader-chapter:hover,.reader-chapter.active{background:#a71c23;color:#fff}
+.reader-content{min-width:0;background:#fdfaf4;border:1px solid #d5cdc0;box-shadow:0 16px 40px #0000000b;padding:clamp(12px,2vw,24px)}
+.reader-toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:flex-end;margin-bottom:14px;border-bottom:1px solid #ddd0be;padding-bottom:14px}
+.reader-toolbar button{background:#24201f;color:white;border:0;padding:10px 14px;cursor:pointer;font-weight:800}
+.reader-toolbar button:hover{background:#ab2029}
+.reader-toolbar #reader-location,.reader-toolbar #reader-nowplaying{flex:1 1 160px;overflow-wrap:anywhere;font:700 13px system-ui,sans-serif;color:#494039}
+.reader-paper{width:100%;height:72vh;min-height:500px;background:#fff;overflow:hidden;border:1px solid #d6cdbf}
+.reader-paper iframe{max-width:100%}
+.reader-dark .reader-paper{background:#181818}
+.reader-pdf{width:100%;height:80vh;min-height:500px;border:0}
+.reader-status{margin:15px 0 0;font:12px/1.5 system-ui,sans-serif;color:#746a62}
+.reader-loading,.reader-error{padding:40px 20px;text-align:center;line-height:1.7}
+.reader-error{color:#a31b24}
+.reader-workspace-media .reader-content{background:#171717;color:white}
+.reader-workspace-media .reader-toolbar{border-bottom:1px solid #494949}
+.reader-workspace-media .reader-toolbar #reader-nowplaying{color:#f7f1e8}
+.reader-workspace-media .reader-status{color:#b9b4b1}
+.reader-workspace-media video{width:100%;height:auto;max-height:70vh;aspect-ratio:16/9;display:block;background:#050505;border:1px solid #3c3c3c}
+.reader-workspace-media audio{display:block;width:100%;margin-top:16px}
+.reader-audio-art{width:100%;aspect-ratio:16/8;display:grid;place-items:center;background:radial-gradient(circle at 50% 30%,#671c22,#171717 75%);font:900 40px/1.15 var(--display,Impact,sans-serif);color:white;text-align:center;overflow:hidden}
+.reader-audio-art img{height:100%;width:100%;object-fit:contain;max-height:440px}
+.shop-track-list{border:1px solid #ddd3c6;margin:16px 0;padding:12px}
+.shop-track-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;border-bottom:1px solid #eee3d6;padding:8px 0}
+.shop-track-row span{flex:1 1 140px;overflow-wrap:anywhere}
+.shop-product-upload{background:#f7f1e8;border:1px solid #ded5c8;padding:15px;margin:16px 0}
+.product-private .red-button{text-decoration:none;display:inline-block}
+@media(max-width:770px){.reader-workspace{grid-template-columns:minmax(0,1fr)}.reader-sidebar{position:static;max-height:240px}.reader-heading{gap:12px;align-items:start}.reader-cover{max-width:80px;max-height:100px}.reader-heading p{font-size:15px}.reader-paper{height:70vh;min-height:400px}.reader-toolbar{justify-content:stretch}.reader-toolbar button{flex:1 1 auto}.reader-workspace-media video{max-height:65vh}}
