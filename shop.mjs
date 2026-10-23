@@ -65,7 +65,7 @@ export function createShop({db,DATA,readBody,json,requireAdmin,isAllowedOrigin,s
    // Les inscriptions de test sont autorisées pendant la construction ; les ventes restent verrouillées par ready().
    limit(req,'register',6);const b=await data(req),mail=email(b.email),name=String(b.name||'').trim();
    if(name.length<2||name.length>100||b.privacyAccepted!==true)throw bad('Nom ou consentement invalide');if(db.prepare('SELECT 1 FROM shop_users WHERE email=?').get(mail))throw bad('Adresse déjà inscrite',409);
-   const u={id:crypto.randomUUID(),name,email:mail};db.prepare('INSERT INTO shop_users VALUES(?,?,?,?)').run(u.id,u.name,u.email,hashed(b.password));login(req,res,u);return json(res,{user:u},201);
+   const u={id:crypto.randomUUID(),name,email:mail};db.prepare('INSERT INTO shop_users (id,name,email,password) VALUES(?,?,?,?)').run(u.id,u.name,u.email,hashed(b.password));login(req,res,u);return json(res,{user:u},201);
   }
   if(url==='/api/shop/login'&&req.method==='POST'){
    limit(req,'login');const b=await data(req),u=db.prepare('SELECT * FROM shop_users WHERE email=?').get(email(b.email));
