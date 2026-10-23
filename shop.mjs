@@ -57,12 +57,13 @@ export function createShop({db,DATA,readBody,json,requireAdmin,isAllowedOrigin,s
   }
   if(!url.startsWith('/api/shop/'))return false;
   if(!['GET','HEAD'].includes(req.method)&&!isAllowedOrigin(req))throw bad('Origine interdite',403);
-  if(url==='/api/shop/catalog'&&req.method==='GET')return json(res,{products:products().filter(p=>p.active).map(pub),salesReady:ready(),registrationReady:legal()});
+  if(url==='/api/shop/catalog'&&req.method==='GET')return json(res,{products:products().filter(p=>p.active).map(pub),salesReady:ready(),registrationReady:true,legalReady:legal()});
   if(url==='/api/shop/me'&&req.method==='GET'){
    const u=me(req);return json(res,{user:u,owned:u?products().filter(p=>access(u,p)).map(pub):[],orders:u?db.prepare('SELECT id,total,status,created_at FROM shop_orders WHERE user_id=? ORDER BY created_at DESC').all(u.id):[]});
   }
   if(url==='/api/shop/register'&&req.method==='POST'){
-   if(!legal())throw bad('Inscription disponible après publication des informations légales',503);limit(req,'register',6);const b=await data(req),mail=email(b.email),name=String(b.name||'').trim();
+   // Les inscriptions de test sont autorisées pendant la construction ; les ventes restent verrouillées par ready().
+   limit(req,'register',6);const b=await data(req),mail=email(b.email),name=String(b.name||'').trim();
    if(name.length<2||name.length>100||b.privacyAccepted!==true)throw bad('Nom ou consentement invalide');if(db.prepare('SELECT 1 FROM shop_users WHERE email=?').get(mail))throw bad('Adresse déjà inscrite',409);
    const u={id:crypto.randomUUID(),name,email:mail};db.prepare('INSERT INTO shop_users VALUES(?,?,?,?)').run(u.id,u.name,u.email,hashed(b.password));login(req,res,u);return json(res,{user:u},201);
   }
